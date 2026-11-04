@@ -179,6 +179,12 @@ CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(delivery_date);
 CREATE INDEX IF NOT EXISTS idx_items_order ON order_items(order_id);
 `;
 
+/** Fuegt eine Spalte hinzu, falls sie in aelteren Datenbanken noch fehlt. */
+export function addColumn(table: string, column: string, ddl: string): void {
+  const have = all<{ name: string }>(`PRAGMA table_info(${table})`).map((c) => c.name);
+  if (!have.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
 export function initDb(): void {
   db.exec(SCHEMA);
   // Migration: aeltere Datenbanken ohne Spalte "roles"
@@ -196,6 +202,7 @@ export function initDb(): void {
     db.exec('ALTER TABLE orders ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL');
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id)');
+  addColumn('orders', 'stop_order', 'INTEGER NOT NULL DEFAULT 0');
   backfillCustomers();
   seedExamples();
 }

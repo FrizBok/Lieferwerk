@@ -483,3 +483,32 @@ dialog.dlg::backdrop { backdrop-filter: blur(3px); }
 .fleet-table { min-width: 0; }
 .table-wrap:has(.fleet-table) { overflow-x: auto; }
 .fleet-table td:last-child { width: 1%; }
+
+/* Tagesplanung */
+.plan-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.plan-nav input[type="date"] { width: auto; }
+.plan-day { margin-left: 6px; font-size: 1.05rem; }
+.plan-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(270px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 10px; align-items: start; }
+.plan-col { background: var(--surface-2); border-radius: var(--radius); padding: 10px; border: 2px solid transparent; min-height: 140px; }
+.plan-col.unassigned { background: var(--warn-soft); }
+.plan-col.over { border-color: var(--primary); }
+.pc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 4px 8px; }
+.pc-tour { display: grid; gap: 6px; margin-bottom: 8px; }
+.pc-sel { padding: 6px 8px; min-height: 34px; font-size: .88rem; }
+.pc-list { display: grid; gap: 8px; }
+.pc-empty { text-align: center; padding: 18px 6px; border: 1px dashed var(--border-strong); border-radius: 12px; }
+.plan-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border-strong); border-radius: 12px; padding: 10px 12px; cursor: grab; display: grid; gap: 3px; box-shadow: var(--shadow); }
+.plan-card.dragging { opacity: .45; }
+.plan-card.st-gepackt { border-left-color: var(--primary); }
+.plan-card.st-unterwegs { border-left-color: var(--warn); }
+.plan-card.st-geliefert { border-left-color: var(--ok); }
+.pc-top { display: flex; align-items: center; gap: 8px; }
+.pc-title { flex: 1; min-width: 0; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-stop { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: .8rem; font-weight: 800; }
+.pc-warn { color: var(--warn); font-size: .8rem; background: var(--warn-soft); border-radius: 8px; padding: 4px 8px; }
+.pc-move { display: flex; gap: 6px; margin-top: 4px; }
+.pc-move .btn { padding: 2px 10px; }
+.plan-undated { display: grid; gap: 8px; }
+.plan-undated-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.plan-undated-row a { font-weight: 600; }
+@media (max-width: 900px) { .plan-board { grid-auto-flow: row; grid-auto-columns: auto; } }

@@ -188,7 +188,7 @@ ROUTES.push({
       const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([o.address, o.postal_code, o.city].filter(Boolean).join(' '))}`;
       const hasDeposit = o.deposit_total_cents !== undefined;
       return h('div', { class: 'card driver-card' },
-        h('div', { class: 'row between' }, h('h3', {}, `${o.number} · ${o.customer_name}`), statusBadge(o.status)),
+        h('div', { class: 'row between' }, h('h3', {}, o.stop_order > 0 ? `Stopp ${o.stop_order} · ` : '', `${o.number} · ${o.customer_name}`), statusBadge(o.status)),
         h('div', {}, addressLine(o) || 'Keine Adresse hinterlegt'),
         h('div', { class: 'muted' }, [fmtDate(o.delivery_date), o.time_window].filter(Boolean).join(' · ')),
         h('div', { class: 'muted small' }, [isAdmin && o.driver_name ? `Fahrer: ${o.driver_name}` : null, o.vehicle_plate ? `Fahrzeug: ${o.vehicle_plate}` : null, o.trailer_plate ? `Anhänger: ${o.trailer_plate}` : null].filter(Boolean).join(' · ')),

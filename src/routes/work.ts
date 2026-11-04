@@ -1,6 +1,7 @@
 import { all, get, run } from '../db.ts';
 import { requireRole } from '../auth.ts';
 import { getOrder, queryOrders } from '../lib/orders.ts';
+import { stopSort } from './plan.ts';
 import { HttpError, oneOf, reqId, reqNum } from '../lib/validate.ts';
 import type { Router } from '../lib/web.ts';
 import type { SessionUser } from '../types.ts';
@@ -99,7 +100,9 @@ export function register(r: Router): void {
     const where =
       "(o.status IN ('gepackt','unterwegs') OR (o.status = 'geliefert' AND o.delivery_date = date('now','localtime')))" +
       (!isAdmin ? ' AND o.driver_id = ?' : '');
-    return queryOrders(user, where, !isAdmin ? [user.id] : [], { items: true });
+    return queryOrders(user, where, !isAdmin ? [user.id] : [], { items: true }).sort(
+      (a, b) => String(a.delivery_date ?? '').localeCompare(String(b.delivery_date ?? '')) || stopSort(a, b),
+    );
   });
 
   r.post('/driver/orders/:id/status', driverOrAdmin, (ctx) => {

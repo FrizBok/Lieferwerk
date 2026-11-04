@@ -127,6 +127,24 @@ export function register(r: Router): void {
         ).id,
       );
 
+      // Fahrzeugakte: Beispiel-Eintraege (Tanken, Service, Reparatur) fuer die ersten zwei Fahrzeuge
+      vehicleIds.slice(0, 2).forEach((vid, vi) => {
+        let km = 82_000 + vi * 31_000;
+        const ins = (days: number, type: string, add: number, cost: number | null, liters: number | null, note: string) => {
+          km += add;
+          run('INSERT INTO fleet_logs (kind, ref_id, log_date, type, km, cost_cents, liters, note, demo) VALUES (?,?,?,?,?,?,?,?,1)',
+            'vehicles', vid, addDays(today, days), type, km, cost, liters, note);
+        };
+        ins(-120, 'service', 0, 38900, null, 'Inspektion, Ölwechsel');
+        ins(-100, 'tanken', 900, 10450, 62.4, 'Diesel');
+        ins(-70, 'tanken', 1050, 11320, 66.1, 'Diesel');
+        ins(-45, 'reifen', 400, 54000, null, 'Winterreifen montiert');
+        ins(-30, 'tanken', 980, 10890, 64.0, 'Diesel');
+        ins(-12, 'reparatur', 600, 21480, null, 'Bremsbeläge vorn');
+        ins(-5, 'tanken', 700, 8120, 47.5, 'Diesel');
+        run('UPDATE vehicles SET odometer_km = ?, next_service_km = ?, next_service_date = ? WHERE id = ?', km, km + (vi === 0 ? 800 : 9000), addDays(today, vi === 0 ? 20 : 150), vid);
+      });
+
       let orderCount = 0;
       for (const o of DEMO_ORDERS) {
         const date = addDays(today, o.day);
@@ -172,6 +190,7 @@ export function register(r: Router): void {
   r.delete('/demo-data', admin, () => {
     return tx(() => {
       const orders = run('DELETE FROM orders WHERE demo = 1').changes;
+      run("DELETE FROM fleet_logs WHERE demo = 1 OR (kind = 'vehicles' AND ref_id IN (SELECT id FROM vehicles WHERE demo = 1)) OR (kind = 'trailers' AND ref_id IN (SELECT id FROM trailers WHERE demo = 1))");
       const vehicles = run('DELETE FROM vehicles WHERE demo = 1').changes;
       const trailers = run('DELETE FROM trailers WHERE demo = 1').changes;
       const users = run('DELETE FROM users WHERE demo = 1').changes;

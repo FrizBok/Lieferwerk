@@ -174,6 +174,21 @@ CREATE TABLE IF NOT EXISTS order_items (
   position INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS fleet_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL CHECK (kind IN ('vehicles','trailers')),
+  ref_id INTEGER NOT NULL,
+  log_date TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'sonstiges',
+  km INTEGER,
+  cost_cents INTEGER,
+  liters REAL,
+  note TEXT,
+  demo INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_fleetlogs_ref ON fleet_logs(kind, ref_id);
+
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(delivery_date);
 CREATE INDEX IF NOT EXISTS idx_items_order ON order_items(order_id);
@@ -212,6 +227,11 @@ export function initDb(): void {
   addColumn('order_items', 'repl_unit', 'TEXT');
   addColumn('order_items', 'repl_note', 'TEXT');
   addColumn('order_items', 'orig_deposit_cents', 'INTEGER');
+  for (const t of ['vehicles', 'trailers']) {
+    addColumn(t, 'next_service_date', 'TEXT');
+    addColumn(t, 'next_service_km', 'INTEGER');
+    addColumn(t, 'odometer_km', 'INTEGER');
+  }
   backfillCustomers();
   seedExamples();
 }

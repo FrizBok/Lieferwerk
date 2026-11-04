@@ -529,3 +529,4 @@ dialog.dlg::backdrop { backdrop-filter: blur(3px); }
 .pi-sub { font-size: .85rem; color: var(--muted); }
 .pi-issue { margin-left: .25rem; flex: none; }
 li.struck { text-decoration: line-through; color: var(--muted); }
+.grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }

@@ -4,9 +4,9 @@
  * - Lesende API-Abfragen fuer Packen/Touren: zuerst Netzwerk, offline die zuletzt geladenen Daten (nur lesen)
  * - Schreibende Anfragen werden nie gepuffert; offline erscheint eine Fehlermeldung
  * - Beim Abmelden raeumt die App den API-Cache (Nachricht "clear-api") */
-const SHELL = 'lw-shell-v1';
+const SHELL = 'lw-shell-v2';
 const API = 'lw-api-v1';
-const SHELL_FILES = ['/', '/style.css', '/core.js', '/pages-admin.js', '/pages-work.js', '/pages-plan.js', '/pwa.js', '/app.js',
+const SHELL_FILES = ['/', '/style.css', '/core.js', '/pages-admin.js', '/pages-work.js', '/pages-plan.js', '/pwa.js', '/live.js', '/app.js',
   '/favicon.svg', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 const API_CACHEABLE = /^\/api\/(me|pack\/orders(\/\d+)?|driver\/orders)$/;
 

@@ -14,6 +14,7 @@ import { register as registerReports } from './routes/reports.ts';
 import { register as registerDelivery } from './routes/delivery.ts';
 import { register as registerBackups } from './routes/backups.ts';
 import { startBackupScheduler } from './lib/backup.ts';
+import { closeAllStreams } from './lib/events.ts';
 
 initDb();
 ensureAdmin();
@@ -42,6 +43,7 @@ server.listen(port, host, () => {
 });
 
 function shutdown(): void {
+  closeAllStreams();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000).unref();
 }

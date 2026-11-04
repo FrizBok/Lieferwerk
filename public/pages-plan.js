@@ -122,6 +122,7 @@ ROUTES.push({
     function go(date) { planUi.date = date; location.hash = `#/plan?date=${date}`; }
 
     await load();
+    state.refresh = () => load().catch(() => {});
     return h('div', {}, pageHead('Tagesplanung'), head,
       h('div', { class: 'info-box' }, 'Ziehe Aufträge auf einen Fahrer oder nutze ↑ ↓ für die Reihenfolge der Stopps. Fahrzeug und Anhänger gelten für die ganze Tour des Fahrers.'),
       board);

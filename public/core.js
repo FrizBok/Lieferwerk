@@ -2,7 +2,7 @@
 
 /* ===================== Zustand & Konstanten ===================== */
 const $app = document.getElementById('app');
-const state = { user: null, canSeeDeposit: false, showDeposit: true, timer: null };
+const state = { user: null, canSeeDeposit: false, showDeposit: true, timer: null, refresh: null };
 const ROUTES = [];
 const hasRole = (r) => !!state.user && (state.user.roles || [state.user.role]).includes(r);
 const roleText = (roles) => (roles || []).map((r) => ROLE_LABELS[r] || r).join(' + ');

@@ -66,8 +66,11 @@ export function buildDeliveryNote(d: NoteData): Buffer {
   }
   tableHead();
   items.forEach((it, i) => {
-    const nameLines = wrapText(it.name, 10, cols.qty - cols.name - 8);
+    const nl = it.item_status === 'ersatz' ? it.repl_name : it.name;
+    const nameLines = wrapText(nl, 10, cols.qty - cols.name - 8);
     const extra: string[] = [];
+    if (it.item_status === 'ersatz') extra.push(...wrapText(`Ersatz für: ${it.name}${it.repl_note ? ` (${it.repl_note})` : ''}`, 8.5, cols.qty - cols.name - 8));
+    if (it.item_status === 'nicht_lieferbar') extra.push(...wrapText(`Nicht lieferbar${it.repl_note ? `: ${it.repl_note}` : ''}`, 8.5, cols.qty - cols.name - 8));
     if (it.note) extra.push(...wrapText(`Hinweis: ${it.note}`, 8.5, cols.qty - cols.name - 8));
     const h = (nameLines.length + extra.length) * 13 + 8;
     if (y + h > PAGE_H - 170) {
@@ -76,7 +79,9 @@ export function buildDeliveryNote(d: NoteData): Buffer {
     p.text(cols.pos, y, String(i + 1), 10);
     nameLines.forEach((l, k) => p.text(cols.name, y + k * 13, l, 10));
     extra.forEach((l, k) => p.text(cols.name, y + (nameLines.length + k) * 13, l, 8.5, false, 0.4));
-    p.textRight(cols.qty + 40, y, `${qty(it.quantity)} ${it.unit}`, 10);
+    if (it.item_status === 'nicht_lieferbar') p.textRight(cols.qty + 40, y, '0 (entfällt)', 10);
+    else if (it.item_status === 'ersatz') p.textRight(cols.qty + 40, y, `${qty(it.repl_qty ?? it.quantity)} ${it.repl_unit || it.unit}`, 10);
+    else p.textRight(cols.qty + 40, y, `${qty(it.quantity)} ${it.unit}`, 10);
     p.text(cols.pack, y, it.packaging === 'kasten' ? 'Kasten' : 'einzeln', 10);
     if (d.showDeposit) p.textRight(cols.dep, y, it.deposit_cents ? eur(it.deposit_cents) : '–', 10);
     y += h;

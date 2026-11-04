@@ -521,3 +521,11 @@ dialog.dlg::backdrop { backdrop-filter: blur(3px); }
 .sig-hint { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; color: #999; }
 .sig-body .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .mb { margin-bottom: 12px; }
+
+/* Ersatz / nicht lieferbar */
+.badge.ersatz { background: var(--warn-soft); color: var(--warn); }
+.pack-item.issue.nicht_lieferbar .pi-name { text-decoration: line-through; }
+.pack-item.issue { border-left: 4px solid var(--warn); }
+.pi-sub { font-size: .85rem; color: var(--muted); }
+.pi-issue { margin-left: .25rem; flex: none; }
+li.struck { text-decoration: line-through; color: var(--muted); }

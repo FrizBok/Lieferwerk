@@ -98,7 +98,7 @@ function saveItems(orderId: number, items: ParsedItem[]): void {
     all<DepositRule>('SELECT * FROM deposit_rules').map((x) => [x.id, x]),
   );
   const existing = new Map<number, any>(
-    all('SELECT id, packed_qty FROM order_items WHERE order_id = ?', orderId).map((x) => [x.id, x]),
+    all('SELECT id, packed_qty, item_status FROM order_items WHERE order_id = ?', orderId).map((x) => [x.id, x]),
   );
   const keep = new Set<number>();
   items.forEach((it, index) => {
@@ -120,7 +120,7 @@ function saveItems(orderId: number, items: ParsedItem[]): void {
         it.deposit_rule_id,
         it.deposit_override_cents,
         deposit,
-        Math.min(prior.packed_qty, it.quantity),
+        prior.item_status === 'normal' ? Math.min(prior.packed_qty, it.quantity) : prior.packed_qty,
         it.note,
         index,
         it.id,

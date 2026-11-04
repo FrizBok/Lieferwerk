@@ -206,6 +206,12 @@ export function initDb(): void {
   addColumn('orders', 'signature_strokes', 'TEXT');
   addColumn('orders', 'signed_name', 'TEXT');
   addColumn('orders', 'signed_at', 'TEXT');
+  addColumn('order_items', 'item_status', "TEXT NOT NULL DEFAULT 'normal'");
+  addColumn('order_items', 'repl_name', 'TEXT');
+  addColumn('order_items', 'repl_qty', 'REAL');
+  addColumn('order_items', 'repl_unit', 'TEXT');
+  addColumn('order_items', 'repl_note', 'TEXT');
+  addColumn('order_items', 'orig_deposit_cents', 'INTEGER');
   backfillCustomers();
   seedExamples();
 }

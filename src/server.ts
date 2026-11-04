@@ -9,6 +9,7 @@ import { register as registerFleet } from './routes/fleet.ts';
 import { register as registerOrders } from './routes/orders.ts';
 import { register as registerWork } from './routes/work.ts';
 import { register as registerDemo } from './routes/demo.ts';
+import { register as registerPlan } from './routes/plan.ts';
 
 initDb();
 ensureAdmin();
@@ -21,6 +22,7 @@ registerCustomers(router);
 registerOrders(router);
 registerWork(router);
 registerDemo(router);
+registerPlan(router);
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '0.0.0.0';

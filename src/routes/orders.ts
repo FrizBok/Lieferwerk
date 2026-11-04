@@ -150,7 +150,7 @@ function saveItems(orderId: number, items: ParsedItem[]): void {
 }
 
 /** Hinweise (keine Fehler) bei Doppelbelegung oder Werkstatt. */
-function conflictWarnings(orderId: number): string[] {
+export function conflictWarnings(orderId: number): string[] {
   const o = get<any>('SELECT * FROM orders WHERE id = ?', orderId);
   if (!o) return [];
   const warnings: string[] = [];
@@ -166,13 +166,17 @@ function conflictWarnings(orderId: number): string[] {
     if (!res) continue;
     const label = `${c.label} ${c.table === 'users' ? res.name : res.plate}`;
     if (c.table !== 'users' && res.status === 'werkstatt') warnings.push(`${label} ist in der Werkstatt.`);
-    if (o.delivery_date) {
+    // Ein Fahrer darf mehrere Touren-Aufträge am Tag haben; Fahrzeug/Anhänger nur bei gleichem Fahrer.
+    if (o.delivery_date && c.col !== 'driver_id') {
       const others = all<any>(
         `SELECT number, customer_name FROM orders
-          WHERE ${c.col} = ? AND delivery_date = ? AND id <> ? AND status NOT IN ('geliefert','storniert')`,
+          WHERE ${c.col} = ? AND delivery_date = ? AND id <> ? AND status NOT IN ('geliefert','storniert')
+            AND (driver_id IS NOT ? OR ? IS NULL)`,
         o[c.col],
         o.delivery_date,
         orderId,
+        o.driver_id,
+        o.driver_id,
       );
       for (const x of others) {
         warnings.push(`${label} ist am ${fmtDate(o.delivery_date)} auch Auftrag ${x.number} (${x.customer_name}) zugeordnet.`);

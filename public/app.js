@@ -2,7 +2,7 @@
 
 /* ===================== Navigation je Rolle ===================== */
 const NAV_ADMIN = [
-  { items: [['/', 'Übersicht', 'home'], ['/orders', 'Aufträge', 'orders'], ['/pack', 'Packlisten', 'pack'], ['/driver', 'Touren', 'route'],
+  { items: [['/', 'Übersicht', 'home'], ['/orders', 'Aufträge', 'orders'], ['/plan', 'Tagesplanung', 'calendar'], ['/pack', 'Packlisten', 'pack'], ['/driver', 'Touren', 'route'],
     ['/fleet', 'Fuhrpark', 'truck'], ['/customers', 'Kunden', 'users'], ['/archive', 'Archiv', 'archive']] },
   { title: 'Verwaltung', items: [['/products', 'Produkte', 'tag'], ['/deposit', 'Pfand', 'refresh'], ['/users', 'Team', 'users'], ['/settings', 'Einstellungen', 'settings']] },
 ];

@@ -61,6 +61,7 @@ const ICONS = {
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
   chevrons: 'M11 17l-5-5 5-5M18 17l-5-5 5-5',
   menu: 'M4 6h16M4 12h16M4 18h16',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   trailer: 'M2 6h15v9H2zM17 11h4v4h-4zM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 15h-3M2 15v2',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',

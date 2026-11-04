@@ -530,3 +530,20 @@ dialog.dlg::backdrop { backdrop-filter: blur(3px); }
 .pi-issue { margin-left: .25rem; flex: none; }
 li.struck { text-decoration: line-through; color: var(--muted); }
 .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+/* Auswertung */
+.chart { width: 100%; height: auto; display: block; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-ax { fill: var(--muted); font-size: 11px; }
+.bar-open { fill: color-mix(in srgb, var(--primary) 28%, var(--surface)); }
+.bar-done { fill: var(--primary); }
+.legend { display: flex; gap: 14px; font-size: .82rem; color: var(--muted); }
+.lg::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.lg-done::before { background: var(--primary); }
+.lg-open::before { background: color-mix(in srgb, var(--primary) 28%, var(--surface)); }
+.barlist { display: flex; flex-direction: column; gap: 12px; }
+.bl-top { display: flex; justify-content: space-between; gap: 10px; font-size: .92rem; }
+.bl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bl-track { height: 8px; border-radius: 99px; background: var(--surface-2); margin-top: 4px; }
+.bl-fill { height: 100%; border-radius: 99px; background: var(--primary); }
+.bl-top strong { white-space: nowrap; }

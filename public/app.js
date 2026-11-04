@@ -26,6 +26,7 @@ let renderToken = 0;
 
 /* ===================== Anmeldung ===================== */
 function showLogin(message) {
+  if (window.lwClearOfflineData) window.lwClearOfflineData();
   clearInterval(state.timer);
   mainEl = null;
   const err = h('div', { class: 'form-error', hidden: !message }, message || '');
@@ -111,6 +112,7 @@ function applyDepositForRoute(path) {
 
 async function logout() {
   try { await api('/logout', { method: 'POST', body: {} }); } catch { /* egal */ }
+  if (window.lwClearOfflineData) window.lwClearOfflineData();
   state.user = null;
   location.hash = '';
   showLogin();

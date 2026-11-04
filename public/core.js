@@ -160,6 +160,7 @@ async function api(path, { method = 'GET', body } = {}) {
   } catch {
     throw new Error('Keine Verbindung zum Server');
   }
+  if (window.lwOffline && method === 'GET') window.lwOffline(res.headers.get('X-Lw-Cache') === '1');
   let data = null;
   try {
     data = await res.json();

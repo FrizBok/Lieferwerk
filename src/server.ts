@@ -12,6 +12,8 @@ import { register as registerDemo } from './routes/demo.ts';
 import { register as registerPlan } from './routes/plan.ts';
 import { register as registerReports } from './routes/reports.ts';
 import { register as registerDelivery } from './routes/delivery.ts';
+import { register as registerBackups } from './routes/backups.ts';
+import { startBackupScheduler } from './lib/backup.ts';
 
 initDb();
 ensureAdmin();
@@ -27,11 +29,13 @@ registerDemo(router);
 registerPlan(router);
 registerReports(router);
 registerDelivery(router);
+registerBackups(router);
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '0.0.0.0';
 const publicDir = path.resolve(import.meta.dirname, '..', 'public');
 
+startBackupScheduler();
 const server = createApp({ router, publicDir, loadUser: userFromRequest });
 server.listen(port, host, () => {
   console.log(`Lieferwerk läuft auf http://localhost:${port}  (Daten: ${DATA_DIR})`);

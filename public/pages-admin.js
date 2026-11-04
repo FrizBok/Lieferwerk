@@ -943,6 +943,47 @@ ROUTES.push({
         })()
       : null;
 
+    // Datensicherung (nur Administrator)
+    let backupCard = null;
+    if (isAdmin) {
+      const bbox = h('div', {});
+      const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+      const fmtWhen = (iso) => { const d = new Date(iso); return `${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; };
+      let info = null;
+      const save = async (patch) => { try { info = await api('/backups/settings', { method: 'PUT', body: patch }); toast('Gespeichert.'); drawBackups(); } catch (e) { toast(e.message, 'error'); } };
+      const drawBackups = () => {
+        const s = info.settings;
+        bbox.replaceChildren(
+          info.last_error ? h('div', { class: 'notice error' }, `Letzte automatische Sicherung fehlgeschlagen: ${info.last_error}`) : null,
+          h('p', { class: info.last_auto ? 'muted small' : 'notice warn' }, info.last_auto ? `Letzte automatische Sicherung: ${fmtWhen(info.last_auto)}` : 'Es gibt noch keine automatische Sicherung.'),
+          h('div', { class: 'form-grid' },
+            h('label', { class: 'field checkbox-field full' }, h('input', { type: 'checkbox', id: 'backup-enabled', checked: s.enabled, onchange: (e) => save({ enabled: e.target.checked }) }), h('span', {}, 'Täglich automatisch sichern')),
+            h('label', { class: 'field' }, h('span', {}, 'Uhrzeit'),
+              h('select', { id: 'backup-hour', onchange: (e) => save({ hour: Number(e.target.value) }) }, ...Array.from({ length: 24 }, (_, i) => h('option', { value: i, selected: i === s.hour }, `${String(i).padStart(2, '0')}:00 Uhr`)))),
+            h('label', { class: 'field' }, h('span', {}, 'Automatische Sicherungen aufbewahren'),
+              h('select', { id: 'backup-keep', onchange: (e) => save({ keep: Number(e.target.value) }) }, ...[7, 14, 30, 60, 90].map((n) => h('option', { value: n, selected: n === s.keep }, `letzte ${n}`))))),
+          h('div', { class: 'mt-s' }, h('button', { class: 'btn primary', id: 'backup-now', onclick: async (e) => {
+            e.target.disabled = true;
+            try { info = await api('/backups', { method: 'POST', body: {} }); toast('Sicherung erstellt.'); drawBackups(); } catch (err) { toast(err.message, 'error'); e.target.disabled = false; }
+          } }, 'Jetzt sichern')),
+          info.items.length
+            ? h('div', { class: 'table-wrap mt-s' }, h('table', {},
+                h('thead', {}, h('tr', {}, h('th', {}, 'Erstellt'), h('th', {}, 'Art'), h('th', { class: 'num' }, 'Größe'), h('th', {}))),
+                h('tbody', {}, ...info.items.map((b) => h('tr', {},
+                  h('td', { class: 'nowrap' }, fmtWhen(b.created)), h('td', {}, b.kind === 'auto' ? 'automatisch' : 'manuell'), h('td', { class: 'num nowrap' }, fmtSize(b.size)),
+                  h('td', { class: 'right nowrap' },
+                    h('a', { class: 'btn small', href: `/api/backups/${encodeURIComponent(b.name)}`, download: b.name }, 'Herunterladen'), ' ',
+                    h('button', { class: 'btn small', 'aria-label': 'Löschen', onclick: async () => {
+                      if (!confirm('Diese Sicherung wirklich löschen?')) return;
+                      try { info = await api(`/backups/${encodeURIComponent(b.name)}`, { method: 'DELETE' }); drawBackups(); } catch (err) { toast(err.message, 'error'); }
+                    } }, '✕')))))))
+            : null,
+          h('p', { class: 'muted small mt-s' }, `Ablageort auf dem Server: ${info.dir}. Wiederherstellen: Server stoppen, dann „npm run cli -- restore <Dateiname>“ (siehe README). Tipp: Sicherungen regelmäßig herunterladen oder den Ordner auf ein anderes Laufwerk legen (Umgebungsvariable BACKUP_DIR).`));
+      };
+      try { info = await api('/backups'); drawBackups(); } catch (e) { bbox.replaceChildren(errorBox(e)); }
+      backupCard = h('div', { class: 'card mt' }, h('h2', {}, 'Datensicherung'), bbox);
+    }
+
     // Testdaten (nur Administrator)
     let demoCard = null;
     if (isAdmin) {
@@ -1015,7 +1056,7 @@ ROUTES.push({
       h('p', { class: 'muted small' }, 'Lieferwerk lässt sich wie eine App auf dem Startbildschirm installieren. Ohne Internet bleiben Packlisten und Touren zum Ansehen verfügbar (zuletzt geladener Stand); Änderungen brauchen eine Verbindung. Beim Abmelden werden diese Daten vom Gerät gelöscht.'),
       appBody);
 
-    return h('div', {}, pageHead(isAdmin ? 'Einstellungen' : 'Konto'), appCard, adminCard, companyCard, demoCard, pwCard);
+    return h('div', {}, pageHead(isAdmin ? 'Einstellungen' : 'Konto'), appCard, adminCard, companyCard, backupCard, demoCard, pwCard);
   },
 });
 

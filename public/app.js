@@ -3,7 +3,7 @@
 /* ===================== Navigation je Rolle ===================== */
 const NAV_ADMIN = [
   { items: [['/', 'Übersicht', 'home'], ['/orders', 'Aufträge', 'orders'], ['/plan', 'Tagesplanung', 'calendar'], ['/pack', 'Packlisten', 'pack'], ['/driver', 'Touren', 'route'],
-    ['/fleet', 'Fuhrpark', 'truck'], ['/customers', 'Kunden', 'users'], ['/archive', 'Archiv', 'archive']] },
+    ['/fleet', 'Fuhrpark', 'truck'], ['/customers', 'Kunden', 'users'], ['/archive', 'Archiv', 'archive'], ['/reports', 'Auswertung', 'chart']] },
   { title: 'Verwaltung', items: [['/products', 'Produkte', 'tag'], ['/deposit', 'Pfand', 'refresh'], ['/users', 'Team', 'users'], ['/settings', 'Einstellungen', 'settings']] },
 ];
 /** Menü nach Rollen: Admin sieht alles, sonst die Punkte der jeweiligen Rollen (auch kombiniert). */

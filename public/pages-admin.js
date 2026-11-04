@@ -1181,6 +1181,151 @@ function ordersTable(orders) {
       h('td', { class: 'num dep nowrap' }, eur(o.deposit_total_cents)))) : [h('tr', {}, h('td', { colspan: 7, class: 'empty' }, 'Keine Aufträge.'))]))));
 }
 
+/* ===================== Auswertung ===================== */
+const reportUi = { preset: '30', from: '', to: '' };
+
+function reportRange() {
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const now = new Date();
+  const p = reportUi.preset;
+  if (p === 'custom') return { from: reportUi.from, to: reportUi.to };
+  if (p === 'month') return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(now) };
+  if (p === 'lastmonth') return { from: iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: iso(new Date(now.getFullYear(), now.getMonth(), 0)) };
+  if (p === 'year') return { from: iso(new Date(now.getFullYear(), 0, 1)), to: iso(now) };
+  const n = Number(p);
+  return { from: iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - (n - 1))), to: iso(now) };
+}
+
+/** Balkendiagramm als SVG: Aufträge pro Tag (geliefert hervorgehoben). */
+function dayChart(daysIn) {
+  let days = daysIn;
+  let unit = 'Tag';
+  if (daysIn.length > 92) { // lange Zeiträume: nach Monaten zusammenfassen
+    const m = new Map();
+    for (const d of daysIn) {
+      const key = d.date.slice(0, 7);
+      const e = m.get(key) || { date: `${key}-01`, label: `${key.slice(5)}/${key.slice(2, 4)}`, orders: 0, delivered: 0 };
+      e.orders += d.orders; e.delivered += d.delivered; m.set(key, e);
+    }
+    days = [...m.values()]; unit = 'Monat';
+  }
+  const ns = 'http://www.w3.org/2000/svg';
+  const el = (name, attrs = {}, text) => { const e = document.createElementNS(ns, name); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; };
+  const W = 760, H = 220, L = 34, B = 26, T = 10, R = 6;
+  const max = Math.max(1, ...days.map((d) => d.orders));
+  const top = max <= 4 ? max : Math.ceil(max / 2) * 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': 'Aufträge pro Tag' });
+  const ph = H - B - T;
+  for (const t of new Set([0, Math.round(top / 2), top])) {
+    const y = T + ph - (t / top) * ph;
+    svg.append(el('line', { x1: L, x2: W - R, y1: y, y2: y, class: 'chart-grid' }), el('text', { x: L - 6, y: y + 4, class: 'chart-ax', 'text-anchor': 'end' }, String(t)));
+  }
+  const bw = (W - L - R) / days.length;
+  const every = Math.ceil(days.length / 10);
+  days.forEach((d, i) => {
+    const x = L + i * bw + bw * 0.15, w = Math.max(1, bw * 0.7);
+    const hTot = (d.orders / top) * ph, hDone = (d.delivered / top) * ph;
+    const g = el('g', {});
+    g.append(el('title', {}, `${unit === 'Monat' ? d.label : fmtDate(d.date)}: ${d.orders} Aufträge, davon ${d.delivered} geliefert`));
+    if (d.orders) g.append(el('rect', { x, y: T + ph - hTot, width: w, height: hTot, rx: 2, class: 'bar-open' }));
+    if (d.delivered) g.append(el('rect', { x, y: T + ph - hDone, width: w, height: hDone, rx: 2, class: 'bar-done' }));
+    svg.append(g);
+    if (i % every === 0) svg.append(el('text', { x: x + w / 2, y: H - 8, class: 'chart-ax', 'text-anchor': 'middle' }, unit === 'Monat' ? d.label : fmtDate(d.date).slice(0, 5)));
+  });
+  return svg;
+}
+
+/** Waagerechte Balkenliste (Name, Wert, Balken relativ zum Maximum). */
+function barList(rows, valueKey, fmtVal, subKey) {
+  if (!rows.length) return h('p', { class: 'muted' }, 'Keine Daten im Zeitraum.');
+  const max = Math.max(1, ...rows.map((r) => r[valueKey]));
+  return h('div', { class: 'barlist' }, ...rows.map((r) => h('div', { class: 'bl-row' },
+    h('div', { class: 'bl-top' }, h('span', { class: 'bl-name' }, r.name), h('strong', {}, fmtVal(r[valueKey]))),
+    h('div', { class: 'bl-track' }, h('div', { class: 'bl-fill', style: `width:${Math.max(2, (r[valueKey] / max) * 100)}%` })),
+    subKey && r[subKey] ? h('div', { class: 'muted small' }, r[subKey]) : null)));
+}
+
+ROUTES.push({
+  re: /^\/reports$/,
+  roles: ['admin'],
+  nav: '/reports',
+  page: async () => {
+    const holder = h('div', {});
+    let data = null;
+    const stat = (n, l) => h('div', { class: 'stat' }, h('div', { class: 'stat-n' }, n), h('div', { class: 'stat-l' }, l));
+
+    function exportCsv() {
+      if (!data) return;
+      const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const num = (c) => (c / 100).toFixed(2).replace('.', ',');
+      const rows = [
+        ['Auswertung', `${data.from} bis ${data.to}`], [],
+        ['Kennzahl', 'Wert'],
+        ['Aufträge', data.kpis.orders], ['Geliefert', data.kpis.delivered], ['Offen', data.kpis.open], ['Storniert', data.kpis.cancelled],
+        ['Positionen', data.kpis.items], ['Pfand (EUR)', num(data.kpis.deposit_cents)], ['Fuhrparkkosten (EUR)', num(data.kpis.fleet_cost_cents)], [],
+        ['Datum', 'Aufträge', 'davon geliefert'], ...data.by_day.map((d) => [d.date, d.orders, d.delivered]), [],
+        ['Kunde', 'Aufträge', 'Positionen'], ...data.top_customers.map((c) => [c.name, c.orders, c.items]), [],
+        ['Fahrer', 'Aufträge', 'geliefert', 'Einsatztage'], ...data.by_driver.map((d) => [d.name, d.orders, d.delivered, d.tour_days]), [],
+        ['Fahrzeug', 'Aufträge', 'geliefert'], ...data.by_vehicle.map((v) => [v.plate, v.orders, v.delivered]), [],
+        ['Artikel', 'Einheit', 'Positionen', 'Menge'], ...data.top_products.map((p) => [p.name, p.unit, p.lines, p.qty]), [],
+        ['Fuhrpark', 'Kosten (EUR)', 'Tanken (EUR)', 'Unterhalt (EUR)'], ...data.fleet_costs.map((f) => [f.plate, num(f.cost_cents), num(f.fuel_cents), num(f.upkeep_cents)]),
+      ];
+      const blob = new Blob(['﻿' + rows.map((r) => r.map(esc).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const a = h('a', { href: URL.createObjectURL(blob), download: `auswertung-${data.from}_${data.to}.csv` });
+      document.body.append(a); a.click(); a.remove();
+    }
+
+    function draw() {
+      const k = data.kpis;
+      const card = (title, ...body) => h('div', { class: 'card' }, h('h3', {}, title), ...body);
+      holder.replaceChildren(
+        h('div', { class: 'grid cols-4' },
+          stat(k.orders, 'Aufträge'), stat(k.delivered, 'Geliefert'), stat(k.open, 'Noch offen'),
+          stat(k.cancelled, 'Storniert'), stat(k.items, 'Positionen'), stat(String(k.avg_per_week).replace('.', ','), 'Aufträge pro Woche'),
+          h('div', { class: 'stat dep' }, h('div', { class: 'stat-n' }, eur(k.deposit_cents)), h('div', { class: 'stat-l' }, 'Pfand')),
+          stat(eur(k.fleet_cost_cents), 'Fuhrparkkosten')),
+        h('div', { class: 'card mt' }, h('div', { class: 'row between' }, h('h3', {}, data.by_day.length > 92 ? 'Aufträge pro Monat' : 'Aufträge pro Tag'),
+          h('div', { class: 'legend' }, h('span', { class: 'lg lg-done' }, 'geliefert'), h('span', { class: 'lg lg-open' }, 'noch nicht geliefert'))), dayChart(data.by_day)),
+        h('div', { class: 'grid cols-2 mt' },
+          card('Top-Kunden', barList(data.top_customers, 'orders', (v) => `${v} Aufträge`, null)),
+          card('Beliebteste Artikel', barList(data.top_products.map((p) => ({ ...p, sub: `${fmtQty(p.qty)} ${p.unit}` })), 'lines', (v) => `${v}×`, 'sub')),
+          card('Fahrer', barList(data.by_driver.map((d) => ({ ...d, sub: `${d.delivered} geliefert · ${d.tour_days} Einsatztag${d.tour_days === 1 ? '' : 'e'}` })), 'orders', (v) => `${v} Aufträge`, 'sub')),
+          card('Fahrzeuge im Einsatz', barList(data.by_vehicle.map((v) => ({ ...v, name: [v.plate, v.name].filter(Boolean).join(' · '), sub: `${v.delivered} geliefert` })), 'orders', (v) => `${v} Aufträge`, 'sub'))),
+        h('div', { class: 'card mt' }, h('h3', {}, 'Fuhrparkkosten'),
+          data.fleet_costs.length
+            ? h('div', { class: 'table-wrap' }, h('table', {},
+                h('thead', {}, h('tr', {}, h('th', {}, 'Kennzeichen'), h('th', {}, 'Art'), h('th', { class: 'num' }, 'Tanken'), h('th', { class: 'num' }, 'Unterhalt'), h('th', { class: 'num' }, 'Gesamt'))),
+                h('tbody', {}, ...data.fleet_costs.map((f) => h('tr', {},
+                  h('td', {}, h('strong', {}, f.plate)), h('td', {}, f.kind === 'vehicles' ? 'Fahrzeug' : 'Anhänger'),
+                  h('td', { class: 'num nowrap' }, eur(f.fuel_cents)), h('td', { class: 'num nowrap' }, eur(f.upkeep_cents)), h('td', { class: 'num nowrap' }, h('strong', {}, eur(f.cost_cents))))))))
+            : h('p', { class: 'muted' }, 'Keine Einträge in der Fahrzeugakte im Zeitraum.')),
+        k.issues ? h('p', { class: 'muted small mt-s' }, `${k.issues} Position(en) wurden durch Ersatz getauscht oder waren nicht lieferbar.`) : null);
+    }
+
+    async function load() {
+      const r = reportRange();
+      if (!r.from || !r.to) return;
+      try {
+        data = await api(`/reports?from=${r.from}&to=${r.to}`);
+        sub.textContent = `${fmtDate(data.from)} bis ${fmtDate(data.to)}`;
+        draw();
+      } catch (e) { holder.replaceChildren(errorBox(e)); }
+    }
+    const sub = h('span', { class: 'muted small' });
+    const PRESETS = [['7', 'Letzte 7 Tage'], ['30', 'Letzte 30 Tage'], ['month', 'Dieser Monat'], ['lastmonth', 'Letzter Monat'], ['year', 'Dieses Jahr'], ['custom', 'Eigener Zeitraum']];
+    const sel = h('select', { id: 'report-preset', onchange: (e) => { reportUi.preset = e.target.value; custom.hidden = reportUi.preset !== 'custom'; if (reportUi.preset !== 'custom') load(); } },
+      ...PRESETS.map(([v, l]) => h('option', { value: v, selected: v === reportUi.preset }, l)));
+    const custom = h('span', { class: 'row', hidden: reportUi.preset !== 'custom' },
+      h('label', { class: 'inline-date' }, 'von ', h('input', { type: 'date', id: 'report-from', value: reportUi.from, onchange: (e) => { reportUi.from = e.target.value; load(); } })),
+      h('label', { class: 'inline-date' }, 'bis ', h('input', { type: 'date', id: 'report-to', value: reportUi.to, onchange: (e) => { reportUi.to = e.target.value; load(); } })));
+    load();
+    return h('div', {},
+      pageHead('Auswertung', sub, h('button', { class: 'btn', id: 'report-csv', onclick: exportCsv }, 'Als CSV exportieren')),
+      h('div', { class: 'filters' }, sel, custom),
+      holder);
+  },
+});
+
 /* ===================== Archiv ===================== */
 ROUTES.push({
   re: /^\/archive$/,

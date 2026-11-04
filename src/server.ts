@@ -10,6 +10,7 @@ import { register as registerOrders } from './routes/orders.ts';
 import { register as registerWork } from './routes/work.ts';
 import { register as registerDemo } from './routes/demo.ts';
 import { register as registerPlan } from './routes/plan.ts';
+import { register as registerReports } from './routes/reports.ts';
 import { register as registerDelivery } from './routes/delivery.ts';
 
 initDb();
@@ -24,6 +25,7 @@ registerOrders(router);
 registerWork(router);
 registerDemo(router);
 registerPlan(router);
+registerReports(router);
 registerDelivery(router);
 
 const port = Number(process.env.PORT ?? 3000);

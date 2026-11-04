@@ -916,7 +916,7 @@ ROUTES.push({
     const settings = isAdmin ? await api('/settings') : null;
 
     const adminCard = isAdmin
-      ? h('div', { class: 'card' },
+      ? h('div', { class: 'card mt' },
           h('h2', {}, 'Pfand für Packer'),
           h('label', { class: 'field checkbox-field' },
             h('input', { type: 'checkbox', checked: settings.packer_show_deposit, onchange: async (e) => {
@@ -982,7 +982,7 @@ ROUTES.push({
     const cur = h('input', { type: 'password', autocomplete: 'current-password' });
     const nw = h('input', { type: 'password', autocomplete: 'new-password' });
     const nw2 = h('input', { type: 'password', autocomplete: 'new-password' });
-    const pwCard = h('div', { class: isAdmin ? 'card mt' : 'card' },
+    const pwCard = h('div', { class: 'card mt' },
       h('h2', {}, 'Passwort ändern'),
       h('div', { class: 'form-grid' },
         h('label', { class: 'field' }, h('span', {}, 'Aktuelles Passwort'), cur),
@@ -994,7 +994,28 @@ ROUTES.push({
         catch (e) { toast(e.message, 'error'); }
       } }, 'Passwort ändern')));
 
-    return h('div', {}, pageHead(isAdmin ? 'Einstellungen' : 'Konto'), adminCard, companyCard, demoCard, pwCard);
+    // App aufs Handy (PWA)
+    const appBody = h('div', {});
+    const drawApp = () => {
+      const canPrompt = !!window.lwInstallEvent;
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      appBody.replaceChildren(
+        window.lwIsStandalone && window.lwIsStandalone()
+          ? h('p', { class: 'notice' }, '✓ Du nutzt Lieferwerk bereits als App.')
+          : h('div', {},
+              canPrompt ? h('button', { class: 'btn primary', id: 'pwa-install', onclick: async () => { const ev = window.lwInstallEvent; ev.prompt(); try { await ev.userChoice; } catch { /* egal */ } window.lwInstallEvent = null; drawApp(); } }, 'App installieren') : null,
+              h('p', { class: 'muted small mt-s' }, ios
+                ? 'iPhone/iPad: In Safari auf „Teilen“ tippen und „Zum Home-Bildschirm“ wählen.'
+                : 'Android: Im Browser-Menü „App installieren“ bzw. „Zum Startbildschirm hinzufügen“ wählen. Die App läuft nur über eine sichere Verbindung (HTTPS) oder auf dem Rechner selbst (localhost).')));
+    };
+    drawApp();
+    document.addEventListener('lw-installable', drawApp);
+    const appCard = h('div', { class: 'card' },
+      h('h2', {}, 'App aufs Handy'),
+      h('p', { class: 'muted small' }, 'Lieferwerk lässt sich wie eine App auf dem Startbildschirm installieren. Ohne Internet bleiben Packlisten und Touren zum Ansehen verfügbar (zuletzt geladener Stand); Änderungen brauchen eine Verbindung. Beim Abmelden werden diese Daten vom Gerät gelöscht.'),
+      appBody);
+
+    return h('div', {}, pageHead(isAdmin ? 'Einstellungen' : 'Konto'), appCard, adminCard, companyCard, demoCard, pwCard);
   },
 });
 

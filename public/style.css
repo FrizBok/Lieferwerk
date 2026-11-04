@@ -547,3 +547,6 @@ li.struck { text-decoration: line-through; color: var(--muted); }
 .bl-track { height: 8px; border-radius: 99px; background: var(--surface-2); margin-top: 4px; }
 .bl-fill { height: 100%; border-radius: 99px; background: var(--primary); }
 .bl-top strong { white-space: nowrap; }
+
+/* Offline-Hinweis */
+#offline-banner { position: sticky; top: 0; z-index: 60; background: var(--warn); color: #fff; text-align: center; padding: 8px 14px; font-size: .88rem; font-weight: 600; }

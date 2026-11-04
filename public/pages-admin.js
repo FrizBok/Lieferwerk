@@ -454,6 +454,7 @@ async function orderForm(id, q = new URLSearchParams()) {
       'div',
       { class: 'card mt no-print' },
       h('h2', {}, 'Status & Aktionen'),
+      o.has_signature ? h('div', { class: 'notice mb' }, `✓ Unterschrieben von ${o.signed_name} am ${String(o.signed_at).slice(0, 16)}`, ' ', h('button', { type: 'button', class: 'btn small', onclick: async () => { if (!confirm('Unterschrift wirklich entfernen?')) return; try { await api(`/orders/${id}/signature`, { method: 'DELETE' }); toast('Unterschrift entfernt.'); route(); } catch (e) { toast(e.message, 'error'); } } }, 'Entfernen')) : null,
       h('div', { class: 'row' },
         statusBadge(o.status),
         statusSel,
@@ -463,6 +464,7 @@ async function orderForm(id, q = new URLSearchParams()) {
         } }, 'Status setzen'),
         h('div', { class: 'spacer', style: 'flex:1' }),
         h('a', { class: 'btn', href: `#/orders/${id}/print` }, 'Packliste drucken'),
+        h('a', { class: 'btn', id: 'lieferschein-pdf', href: `/api/orders/${id}/lieferschein.pdf`, target: '_blank', rel: 'noopener' }, 'Lieferschein (PDF)'),
         h('button', { type: 'button', class: 'btn', onclick: async () => {
           try { const res = await api(`/orders/${id}/duplicate`, { method: 'POST', body: {} }); toast(`Kopie ${res.order.number} angelegt.`); location.hash = `#/orders/${res.order.id}`; }
           catch (e) { toast(e.message, 'error'); }
@@ -910,6 +912,21 @@ ROUTES.push({
           )
       : null;
 
+    // Absender für den Lieferschein
+    const companyCard = isAdmin
+      ? (() => {
+          const f = (label, key, ph) => { const i = h('input', { type: 'text', value: settings[key] || '', placeholder: ph, autocomplete: 'off' }); return [h('label', { class: 'field' }, h('span', {}, label), i), i]; };
+          const [l1, i1] = f('Firmenname', 'company_name', 'z. B. Getränke Lieferservice Muster');
+          const [l2, i2] = f('Adresse', 'company_address', 'Straße, PLZ Ort');
+          const [l3, i3] = f('Telefon', 'company_phone', '');
+          return h('div', { class: 'card mt' }, h('h2', {}, 'Absender auf dem Lieferschein'),
+            h('div', { class: 'form-grid' }, l1, l2, l3),
+            h('div', { class: 'mt-s' }, h('button', { class: 'btn', onclick: async () => {
+              try { await api('/settings', { method: 'PUT', body: { company_name: i1.value, company_address: i2.value, company_phone: i3.value } }); toast('Gespeichert.'); } catch (e) { toast(e.message, 'error'); }
+            } }, 'Speichern')));
+        })()
+      : null;
+
     // Testdaten (nur Administrator)
     let demoCard = null;
     if (isAdmin) {
@@ -961,7 +978,7 @@ ROUTES.push({
         catch (e) { toast(e.message, 'error'); }
       } }, 'Passwort ändern')));
 
-    return h('div', {}, pageHead(isAdmin ? 'Einstellungen' : 'Konto'), adminCard, demoCard, pwCard);
+    return h('div', {}, pageHead(isAdmin ? 'Einstellungen' : 'Konto'), adminCard, companyCard, demoCard, pwCard);
   },
 });
 

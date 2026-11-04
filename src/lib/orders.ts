@@ -42,6 +42,10 @@ export function loadItems(orderId: number): any[] {
 /** Entfernt serverseitig alle Pfand-Felder, wenn der Betrachter sie nicht sehen darf. */
 export function shapeOrder(order: any, items: any[] | undefined, showDeposit: boolean): any {
   const out: any = { ...order };
+  if ('signature_strokes' in out) {
+    out.has_signature = !!out.signed_at;
+    delete out.signature_strokes;
+  }
   if (items) {
     out.items = items.map((it) => {
       const copy: any = { ...it };

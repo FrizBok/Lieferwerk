@@ -203,6 +203,9 @@ export function initDb(): void {
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id)');
   addColumn('orders', 'stop_order', 'INTEGER NOT NULL DEFAULT 0');
+  addColumn('orders', 'signature_strokes', 'TEXT');
+  addColumn('orders', 'signed_name', 'TEXT');
+  addColumn('orders', 'signed_at', 'TEXT');
   backfillCustomers();
   seedExamples();
 }

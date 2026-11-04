@@ -97,11 +97,17 @@ export function register(r: Router): void {
   // ---------------- Einstellungen ----------------
   r.get('/settings', admin, () => ({
     packer_show_deposit: getSetting('packer_show_deposit', '1') === '1',
+    company_name: getSetting('company_name', ''),
+    company_address: getSetting('company_address', ''),
+    company_phone: getSetting('company_phone', ''),
   }));
 
   r.put('/settings', admin, (ctx) => {
     if (ctx.body.packer_show_deposit !== undefined) {
       setSetting('packer_show_deposit', bool(ctx.body.packer_show_deposit) ? '1' : '0');
+    }
+    for (const [key, max] of [['company_name', 80], ['company_address', 160], ['company_phone', 40]] as const) {
+      if (ctx.body[key] !== undefined) setSetting(key, optStr(ctx.body[key], key, max) ?? '');
     }
     return { packer_show_deposit: getSetting('packer_show_deposit', '1') === '1' };
   });

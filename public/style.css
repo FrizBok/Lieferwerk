@@ -512,3 +512,12 @@ dialog.dlg::backdrop { backdrop-filter: blur(3px); }
 .plan-undated-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .plan-undated-row a { font-weight: 600; }
 @media (max-width: 900px) { .plan-board { grid-auto-flow: row; grid-auto-columns: auto; } }
+
+/* Unterschrift */
+.sig-dlg { width: min(640px, 96vw); }
+.sig-body { display: grid; gap: 12px; }
+.sig-wrap { position: relative; border: 2px dashed var(--border-strong); border-radius: 14px; background: #fff; overflow: hidden; }
+.sig-canvas { display: block; width: 100%; aspect-ratio: 3 / 1; touch-action: none; cursor: crosshair; }
+.sig-hint { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; color: #999; }
+.sig-body .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.mb { margin-bottom: 12px; }

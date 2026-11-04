@@ -309,3 +309,68 @@ function formDialog({ title, fields, values = {}, submitLabel = 'Speichern', onS
   const first = grid.querySelector('input:not([type=checkbox]), select, textarea');
   if (first) first.focus();
 }
+
+
+/* ===================== Unterschrift (Lieferschein) ===================== */
+function signatureDialog(order, onSaved) {
+  const dlg = h('dialog', { class: 'dlg sig-dlg' });
+  const strokes = [];
+  let current = null;
+  const canvas = h('canvas', { class: 'sig-canvas', width: 900, height: 300, 'aria-label': 'Unterschriftsfeld' });
+  const ctx = canvas.getContext('2d');
+  const name = h('input', { type: 'text', value: order.signed_name || order.customer_name || '', placeholder: 'Name des Empfängers', autocomplete: 'off' });
+  const deliver = h('input', { type: 'checkbox', checked: order.status !== 'geliefert' });
+  const err = h('div', { class: 'form-error', hidden: true });
+  const hint = h('div', { class: 'sig-hint muted' }, 'Hier unterschreiben');
+  const dark = () => document.documentElement.dataset.theme === 'dark';
+
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+    for (const s of strokes) {
+      ctx.beginPath();
+      s.forEach(([x, y], i) => { const px = x * canvas.width, py = y * canvas.height; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); });
+      if (s.length === 1) ctx.lineTo(s[0][0] * canvas.width + 0.1, s[0][1] * canvas.height);
+      ctx.stroke();
+    }
+    hint.hidden = strokes.length > 0;
+  }
+  const pos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+  };
+  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); err.hidden = true; canvas.setPointerCapture(e.pointerId); current = [pos(e)]; strokes.push(current); redraw(); });
+  canvas.addEventListener('pointermove', (e) => { if (!current) return; current.push(pos(e)); redraw(); });
+  const end = () => { current = null; };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+
+  const save = h('button', { type: 'button', class: 'btn primary', id: 'sig-save', onclick: async () => {
+    err.hidden = true;
+    if (!strokes.length) { err.textContent = 'Bitte zuerst unterschreiben.'; err.hidden = false; return; }
+    if (!name.value.trim()) { err.textContent = 'Bitte den Namen des Empfängers eintragen.'; err.hidden = false; return; }
+    save.disabled = true;
+    try {
+      const res = await api(`/driver/orders/${order.id}/signature`, { method: 'POST', body: { name: name.value.trim(), strokes, mark_delivered: deliver.checked } });
+      dlg.close();
+      toast('Unterschrift gespeichert.');
+      onSaved(res);
+    } catch (e) { err.textContent = e.message; err.hidden = false; } finally { save.disabled = false; }
+  } }, 'Speichern');
+
+  dlg.append(h('div', { class: 'sig-body' },
+    h('h2', {}, `Lieferschein ${order.number}`),
+    h('div', { class: 'muted' }, `${order.customer_name} · ${order.items ? order.items.length : order.item_count} Positionen`),
+    h('div', { class: 'sig-wrap' }, canvas, hint),
+    h('label', { class: 'field' }, h('span', {}, 'Name des Empfängers'), name),
+    order.status !== 'geliefert' ? h('label', { class: 'field checkbox-field' }, deliver, h('span', {}, 'Auftrag als geliefert markieren')) : null,
+    err,
+    h('div', { class: 'actions' },
+      h('button', { type: 'button', class: 'btn', onclick: () => { strokes.length = 0; redraw(); } }, 'Löschen'),
+      h('button', { type: 'button', class: 'btn', onclick: () => dlg.close() }, 'Abbrechen'),
+      save)));
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+  redraw();
+}

@@ -14,6 +14,8 @@ Läuft auf Linux, macOS, Windows und in Docker. Keine externen Pakete, keine Dat
 - **Kunden**: eigene Kundenverwaltung (anlegen, bearbeiten, löschen) mit Lieferhistorie; im Auftrag einen bestehenden Kunden auswählen (mit Suche) oder direkt einen neuen anlegen
 - **Archiv**: alle erledigten und stornierten Lieferungen, mit Datums- und Textfilter und CSV-Export
 - **Fuhrpark**: alle Fahrzeuge und Anhänger auf einer Seite, filterbar nach Art (Fahrzeuge/Anhänger), Zustand (frei/unterwegs/Werkstatt) und Suche; Ansicht als Kacheln oder Liste. Zeigt aktuellen und nächsten Einsatz, HU/TÜV-Warnung; Warnung bei Doppelbelegung
+- **Tagesplanung**: Aufträge eines Tages per Drag & Drop auf Fahrer verteilen, Reihenfolge der Stopps festlegen, Fahrzeug/Anhänger je Tour setzen
+- **Lieferschein (PDF)** mit Absenderdaten (Einstellungen), Positionen und Pfand; der Fahrer lässt den Empfänger am Handy unterschreiben, die Unterschrift erscheint im PDF
 - **Fahrer-Ansicht**: eigene Touren, Navigation, Anruf, „Losfahren“ / „Geliefert“
 - **Rollen**: Administrator, Packer, Fahrer – pro Mitarbeiter auch **mehrere Rollen** möglich (z. B. Packer + Fahrer; ein Administrator kann zusätzlich als Packer/Fahrer eingeteilt werden). Wer Packer und Fahrer ist, sieht Pfand in der Fahrer-Ansicht immer und in der Packliste nach den Packer-Regeln
 - **Testdaten**: Einstellungen → „Testdaten erzeugen“ legt Beispiel-Aufträge (Packlisten, Touren, Archiv), Kunden, Fuhrpark und Demo-Mitarbeiter an; „Testdaten entfernen“ löscht nur diese wieder

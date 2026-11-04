@@ -33,6 +33,20 @@ interface Route {
  * Minimaler Router. Alle Handler einer Route laufen nacheinander ("Guards" wie
  * requireAuth zuerst); der Rueckgabewert des letzten Handlers wird als JSON gesendet.
  */
+/** Antwort mit beliebigem Inhalt (z. B. PDF, Datei-Download) statt JSON. */
+export class Raw {
+  body: Buffer;
+  type: string;
+  filename: string | null;
+  attachment: boolean;
+  constructor(body: Buffer | string, type: string, filename: string | null = null, attachment = false) {
+    this.body = typeof body === 'string' ? Buffer.from(body) : body;
+    this.type = type;
+    this.filename = filename;
+    this.attachment = attachment;
+  }
+}
+
 export class Router {
   routes: Route[] = [];
 
@@ -222,6 +236,13 @@ export function createApp(opts: AppOptions): http.Server {
       let result: unknown;
       for (const handler of found.route.handlers) {
         result = await handler(ctx);
+      }
+      if (result instanceof Raw) {
+        const h: Record<string, string | number> = { 'Content-Type': result.type, 'Content-Length': result.body.length, 'Cache-Control': 'no-store' };
+        if (result.filename) h['Content-Disposition'] = `${result.attachment ? 'attachment' : 'inline'}; filename="${result.filename.replace(/[^\w.\-]/g, '_')}"`;
+        res.writeHead(ctx.status, h);
+        res.end(ctx.method === 'HEAD' ? undefined : result.body);
+        return;
       }
       sendJson(res, ctx.status, result === undefined ? { ok: true } : result, ctx.headers);
     } catch (e) {

@@ -742,6 +742,11 @@ ROUTES.push({
           { name: 'status', label: 'Zustand', type: 'select', options: [['verfuegbar', 'Verfügbar'], ['werkstatt', 'In der Werkstatt']] },
           { name: 'capacity', label: 'Ladekapazität', placeholder: 'z. B. 750 kg / 20 Kästen' },
           { name: 'inspection_date', label: 'Nächste HU/TÜV', type: 'date' },
+          { name: 'next_service_date', label: 'Nächster Service (Datum)', type: 'date' },
+          ...(kind === 'vehicles' ? [
+            { name: 'odometer_km', label: 'Kilometerstand', type: 'number' },
+            { name: 'next_service_km', label: 'Nächster Service bei (km)', type: 'number' },
+          ] : []),
           { name: 'notes', label: 'Notiz', type: 'textarea', full: true },
         ],
         onSubmit: async (v) => {
@@ -767,6 +772,17 @@ ROUTES.push({
       const txt = left < 0 ? `HU überfällig (${fmtDate(it.inspection_date)})` : left <= 30 ? `HU in ${left} Tagen` : `HU ${fmtDate(it.inspection_date)}`;
       return h('span', { class: `chip ${cls}`, title: 'Nächste HU/TÜV' }, txt);
     };
+    const serviceChip = (it) => {
+      const d = it.service_days_left, k = it.service_km_left;
+      if (d == null && k == null) return null;
+      const over = (d != null && d < 0) || (k != null && k < 0);
+      const soon = (d != null && d <= 30) || (k != null && k <= 1000);
+      const cls = over ? 'danger' : soon ? 'warn' : 'ok';
+      const parts = [];
+      if (d != null) parts.push(d < 0 ? `${-d} Tage überfällig` : d === 0 ? 'heute' : `in ${d} Tagen`);
+      if (k != null) parts.push(k < 0 ? `${-k} km überfällig` : `in ${k.toLocaleString('de-DE')} km`);
+      return h('span', { class: `chip ${cls}`, title: 'Nächster Service' }, `Service ${parts.join(' / ')}`);
+    };
     const usage = (it) => {
       if (it.current) return h('span', {}, h('strong', {}, 'Unterwegs: '), h('a', { href: `#/orders/${it.current.id}` }, it.current.customer_name), it.current.driver_name ? ` · ${it.current.driver_name}` : '');
       if (it.state === 'werkstatt') return h('span', { class: 'muted' }, 'In der Werkstatt');
@@ -790,9 +806,9 @@ ROUTES.push({
         h('div', { class: 'ft-chips' },
           h('span', { class: 'chip' }, KIND_LABEL[it.kind]),
           it.capacity ? h('span', { class: 'chip' }, it.capacity) : null,
-          inspectionChip(it)),
+          inspectionChip(it), serviceChip(it)),
         it.notes ? h('div', { class: 'muted small ft-note' }, it.notes) : null,
-        h('div', { class: 'ft-actions' }, h('button', { class: 'btn small', onclick: () => edit(it.kind, it) }, 'Bearbeiten'), menu(it)));
+        h('div', { class: 'ft-actions' }, h('a', { class: 'btn small', href: `#/fleet/${it.kind}/${it.id}` }, 'Akte'), h('button', { class: 'btn small', onclick: () => edit(it.kind, it) }, 'Bearbeiten'), menu(it)));
     }
 
     function listView(items) {
@@ -804,7 +820,7 @@ ROUTES.push({
           h('td', {}, badge(it.state, FLEET_STATE_LABELS[it.state])),
           h('td', {}, usage(it)),
           h('td', { class: 'nowrap' }, inspectionChip(it) || '–'),
-          h('td', { class: 'right nowrap' }, h('button', { class: 'btn small', onclick: () => edit(it.kind, it) }, 'Bearbeiten'), ' ', menu(it)))))));
+          h('td', { class: 'right nowrap' }, h('a', { class: 'btn small', href: `#/fleet/${it.kind}/${it.id}` }, 'Akte'), ' ', h('button', { class: 'btn small', onclick: () => edit(it.kind, it) }, 'Bearbeiten'), ' ', menu(it)))))));
     }
 
     const content = h('div', {});
@@ -1003,6 +1019,85 @@ function customerDialog(c, onDone) {
     },
   });
 }
+
+const LOG_TYPE_LABELS = { tanken: 'Tanken', service: 'Service / Inspektion', reparatur: 'Reparatur', hu: 'HU / TÜV', reifen: 'Reifen', sonstiges: 'Sonstiges' };
+
+ROUTES.push({
+  re: /^\/fleet\/(vehicles|trailers)\/(\d+)$/,
+  roles: ['admin'],
+  nav: '/fleet',
+  page: async (m) => {
+    const kind = m[1], id = Number(m[2]);
+    const isVeh = kind === 'vehicles';
+    let data = await api(`/fleet/${kind}/${id}/akte`);
+    const root = h('div', {});
+    const stat = (n, l) => h('div', { class: 'stat' }, h('div', { class: 'stat-n' }, n), h('div', { class: 'stat-l' }, l));
+
+    function logDialog(log) {
+      formDialog({
+        title: log ? 'Eintrag bearbeiten' : 'Eintrag hinzufügen',
+        values: log ? { ...log } : { log_date: todayISO(), type: 'tanken', km: data.item.odometer_km },
+        fields: [
+          { name: 'log_date', label: 'Datum *', type: 'date', required: true },
+          { name: 'type', label: 'Art', type: 'select', options: Object.entries(LOG_TYPE_LABELS) },
+          ...(isVeh ? [{ name: 'km', label: 'Kilometerstand', type: 'number' }] : []),
+          { name: 'cost_cents', label: 'Kosten (€)', type: 'money' },
+          ...(isVeh ? [{ name: 'liters', label: 'Liter (nur Tanken)', type: 'number' }] : []),
+          { name: 'note', label: 'Notiz', type: 'textarea', full: true },
+        ],
+        onSubmit: async (v) => {
+          const body = { ...v, cost_cents: v.cost_cents };
+          data = await api(log ? `/fleet/logs/${log.id}` : `/fleet/${kind}/${id}/logs`, { method: log ? 'PUT' : 'POST', body });
+          toast('Gespeichert.');
+          draw();
+        },
+      });
+    }
+
+    function draw() {
+      const { item, logs, stats, recent_orders: recent } = data;
+      const logsBody = logs.length
+        ? logs.map((l) => h('tr', {},
+            h('td', { class: 'nowrap' }, fmtDate(l.log_date)),
+            h('td', {}, badge('einzeln', LOG_TYPE_LABELS[l.type] || l.type)),
+            isVeh ? h('td', { class: 'num nowrap' }, l.km != null ? `${l.km.toLocaleString('de-DE')} km` : '–') : null,
+            h('td', { class: 'num nowrap' }, l.cost_cents != null ? eur(l.cost_cents) : '–'),
+            isVeh ? h('td', { class: 'num nowrap' }, l.liters ? `${fmtQty(l.liters)} l` : '–') : null,
+            h('td', {}, l.note || ''),
+            h('td', { class: 'right nowrap' },
+              h('button', { class: 'btn small', onclick: () => logDialog(l) }, 'Bearbeiten'), ' ',
+              h('button', { class: 'btn small', 'aria-label': 'Löschen', onclick: async () => {
+                if (!confirm('Eintrag wirklich löschen?')) return;
+                try { data = await api(`/fleet/logs/${l.id}`, { method: 'DELETE' }); draw(); } catch (e) { toast(e.message, 'error'); }
+              } }, '✕'))))
+        : [h('tr', {}, h('td', { colspan: 7, class: 'empty' }, 'Noch keine Einträge. Tanken, Service und Reparaturen hier festhalten.'))];
+      const reminders = [];
+      if (item.inspection_days_left != null && item.inspection_days_left <= 30) reminders.push(item.inspection_days_left < 0 ? `HU/TÜV ist seit ${-item.inspection_days_left} Tagen überfällig.` : `HU/TÜV fällig in ${item.inspection_days_left} Tagen (${fmtDate(item.inspection_date)}).`);
+      if (item.service_days_left != null && item.service_days_left <= 30) reminders.push(item.service_days_left < 0 ? `Service seit ${-item.service_days_left} Tagen überfällig.` : `Service fällig in ${item.service_days_left} Tagen (${fmtDate(item.next_service_date)}).`);
+      if (item.service_km_left != null && item.service_km_left <= 1000) reminders.push(item.service_km_left < 0 ? `Service-Kilometerstand um ${-item.service_km_left} km überschritten.` : `Service in ${item.service_km_left} km fällig.`);
+      root.replaceChildren(
+        pageHead(`${item.plate}${item.name ? ' · ' + item.name : ''}`, h('a', { class: 'btn', href: '#/fleet' }, 'Zum Fuhrpark'), h('button', { class: 'btn primary', id: 'log-add', onclick: () => logDialog(null) }, 'Eintrag hinzufügen')),
+        h('div', { class: 'muted' }, [isVeh ? 'Fahrzeug' : 'Anhänger', FLEET_STATE_LABELS[item.state], item.capacity].filter(Boolean).join(' · ')),
+        ...reminders.map((t) => h('div', { class: 'notice warn mt-s' }, t)),
+        h('div', { class: 'grid cols-4 mt-s' },
+          stat(eur(stats.total_cost_cents), 'Kosten gesamt'),
+          stat(eur(stats.year_cost_cents), 'Kosten dieses Jahr'),
+          isVeh ? stat(item.odometer_km != null ? `${item.odometer_km.toLocaleString('de-DE')} km` : '–', 'Kilometerstand') : stat(String(stats.deliveries), 'Lieferungen'),
+          isVeh ? stat(stats.avg_l_100km != null ? `${String(stats.avg_l_100km).replace('.', ',')} l` : '–', 'Verbrauch / 100 km') : stat(item.inspection_date ? fmtDate(item.inspection_date) : '–', 'Nächste HU')),
+        h('h2', {}, 'Fahrzeugakte'),
+        h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, h('th', {}, 'Datum'), h('th', {}, 'Art'), isVeh ? h('th', { class: 'num' }, 'km-Stand') : null, h('th', { class: 'num' }, 'Kosten'), isVeh ? h('th', { class: 'num' }, 'Liter') : null, h('th', {}, 'Notiz'), h('th', {}))),
+          h('tbody', {}, ...logsBody))),
+        h('h2', {}, 'Letzte Lieferungen'),
+        recent.length
+          ? h('ul', {}, ...recent.map((o) => h('li', {}, h('a', { href: `#/orders/${o.id}` }, `${fmtDate(o.delivery_date)} · ${o.number} · ${o.customer_name}`))))
+          : h('p', { class: 'muted' }, 'Noch keine abgeschlossenen Lieferungen.'),
+      );
+    }
+    draw();
+    return root;
+  },
+});
 
 ROUTES.push({
   re: /^\/customers$/,

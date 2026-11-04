@@ -1,3 +1,4 @@
+import { broadcastChange, openStream } from './events.ts';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -199,6 +200,13 @@ export function createApp(opts: AppOptions): http.Server {
         return;
       }
 
+      // Live-Aktualisierung (Server-Sent Events), nur fuer angemeldete Benutzer
+      if (method === 'GET' && url.pathname === '/api/events') {
+        if (!opts.loadUser(req)) throw new HttpError(401, 'Nicht angemeldet');
+        if (!openStream(req, res)) throw new HttpError(503, 'Zu viele Live-Verbindungen');
+        return;
+      }
+
       // CSRF-Schutz: schreibende Anfragen nur vom eigenen Host
       if (method !== 'GET' && method !== 'HEAD') {
         const origin = req.headers.origin;
@@ -237,6 +245,7 @@ export function createApp(opts: AppOptions): http.Server {
       for (const handler of found.route.handlers) {
         result = await handler(ctx);
       }
+      if (method !== 'GET' && method !== 'HEAD' && ctx.status < 400 && !/^\/api\/(login|logout)$/.test(url.pathname)) broadcastChange();
       if (result instanceof Raw) {
         const h: Record<string, string | number> = { 'Content-Type': result.type, 'Content-Length': result.body.length, 'Cache-Control': 'no-store' };
         if (result.filename) h['Content-Disposition'] = `${result.attachment ? 'attachment' : 'inline'}; filename="${result.filename.replace(/[^\w.\-]/g, '_')}"`;

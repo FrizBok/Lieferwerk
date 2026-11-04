@@ -19,6 +19,7 @@ function miniOrder(o) {
 
 ROUTES.push({
   re: /^\/$/,
+  live: 'soft',
   roles: ['admin'],
   nav: '/',
   page: async () => {
@@ -153,6 +154,7 @@ ROUTES.push({
         timer = setTimeout(() => { filters.q = e.target.value.trim(); load(); }, 250);
       },
     });
+    state.refresh = load;
     load();
     return h(
       'div',
@@ -719,6 +721,7 @@ const fleetUi = { kind: 'all', state: 'all', q: '', view: (storeGet('lw_fleet_vi
 
 ROUTES.push({
   re: /^\/fleet$/,
+  live: 'soft',
   roles: ['admin'],
   nav: '/fleet',
   page: async () => {

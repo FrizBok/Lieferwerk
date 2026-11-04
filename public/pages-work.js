@@ -43,6 +43,7 @@ ROUTES.push({
       }
     }
     await load();
+    state.refresh = load;
     state.timer = setInterval(load, 30000);
     return h('div', {}, pageHead('Packlisten', h('span', { class: 'muted small' }, 'aktualisiert sich automatisch')), root);
   },
@@ -254,6 +255,7 @@ ROUTES.push({
       }
     }
     await load();
+    state.refresh = load;
     state.timer = setInterval(load, 30000);
     return h('div', {}, pageHead(isAdmin ? 'Touren (alle Fahrer)' : 'Meine Touren'), root);
   },

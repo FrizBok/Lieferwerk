@@ -26,6 +26,7 @@ let renderToken = 0;
 
 /* ===================== Anmeldung ===================== */
 function showLogin(message) {
+  if (window.lwLiveStop) window.lwLiveStop();
   if (window.lwClearOfflineData) window.lwClearOfflineData();
   clearInterval(state.timer);
   mainEl = null;
@@ -95,6 +96,7 @@ function showSetup() {
 async function startSession() {
   const me = await api('/me');
   state.user = me.user;
+  if (window.lwLiveStart) window.lwLiveStart();
   state.canSeeDeposit = me.can_see_deposit;
   applyDepositForRoute(location.hash.slice(1).split('?')[0]);
   buildShell();
@@ -200,9 +202,11 @@ function parseHash() {
   return { path: path || '/', query: new URLSearchParams(qs || '') };
 }
 
-async function route() {
+async function route(opts = {}) {
+  const soft = opts.soft === true; // Neu laden ohne Platzhalter und ohne Scroll-Sprung (Live-Aktualisierung)
   clearInterval(state.timer);
   state.timer = null;
+  state.refresh = null;
   if (!state.user) return;
   if (!mainEl) buildShell();
   const { path, query } = parseHash();
@@ -213,12 +217,14 @@ async function route() {
     const token = ++renderToken;
     applyDepositForRoute(path);
     markNav(r.nav);
-    mainEl.replaceChildren(h('p', { class: 'muted' }, 'Lade …'));
+    if (!soft) mainEl.replaceChildren(h('p', { class: 'muted' }, 'Lade …'));
+    const keepY = window.scrollY;
     try {
       const node = await r.page(m, query);
       if (token !== renderToken) { clearInterval(state.timer); state.timer = null; return; }
       mainEl.replaceChildren(node);
-      window.scrollTo(0, 0);
+      window.scrollTo(0, soft ? keepY : 0);
+      if (r.live === 'soft' && !state.refresh) state.refresh = () => route({ soft: true });
     } catch (e) {
       if (token !== renderToken) return;
       mainEl.replaceChildren(errorBox(e));
@@ -228,7 +234,7 @@ async function route() {
   location.replace(`#${homePath()}`);
 }
 
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => route());
 
 /* ===================== Start ===================== */
 (async function boot() {

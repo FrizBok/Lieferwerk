@@ -1,5 +1,8 @@
 import { parseRoles, primaryRole, rolesToCsv } from './lib/roles.ts';
-import { get, run } from './db.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import { DATA_DIR, db, get, run } from './db.ts';
+import { BACKUP_DIR, createBackup, listBackups, verifyBackupFile } from './lib/backup.ts';
 import { initDb } from './db.ts';
 import { destroyUserSessions, hashPassword } from './auth.ts';
 
@@ -34,6 +37,28 @@ if (cmd === 'reset-password') {
   if (password.length < 8) fail('Das Passwort muss mindestens 8 Zeichen lang sein.');
   run('INSERT INTO users (username, name, password_hash, role, roles) VALUES (?,?,?,?,?)', username, name, hashPassword(password), primaryRole(roles), rolesToCsv(roles));
   console.log(`Benutzer "${username}" (${role}) wurde angelegt.`);
+} else if (cmd === 'backup') {
+  const info = createBackup('manuell');
+  console.log(`Sicherung erstellt: ${path.join(BACKUP_DIR, info.name)}`);
+} else if (cmd === 'restore') {
+  // Nur bei gestopptem Server verwenden!
+  const arg = args[0];
+  if (!arg) {
+    console.log('Vorhandene Sicherungen:');
+    for (const b of listBackups()) console.log(`  ${b.name}  (${(b.size / 1024).toFixed(0)} KB)`);
+    fail('Aufruf: restore <sicherungsdatei>   (Dateiname aus der Liste oder voller Pfad; Server vorher stoppen)');
+  }
+  const src = fs.existsSync(arg) ? path.resolve(arg) : path.join(BACKUP_DIR, arg);
+  if (!fs.existsSync(src)) fail(`Datei nicht gefunden: ${arg}`);
+  try { verifyBackupFile(src); } catch (e) { fail((e as Error).message); }
+  const live = path.join(DATA_DIR, 'lieferwerk.db');
+  db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  db.close();
+  const safety = path.join(DATA_DIR, `lieferwerk-vor-restore-${Date.now()}.db`);
+  fs.copyFileSync(live, safety);
+  for (const ext of ['-wal', '-shm']) fs.rmSync(live + ext, { force: true });
+  fs.copyFileSync(src, live);
+  console.log(`Wiederhergestellt aus ${path.basename(src)}. Der bisherige Stand liegt in ${safety}.`);
 } else {
-  fail('Befehle: reset-password, create-user');
+  fail('Befehle: reset-password, create-user, backup, restore');
 }

@@ -20,6 +20,7 @@ Läuft auf Linux, macOS, Windows und in Docker. Keine externen Pakete, keine Dat
 - **Fahrzeugakte**: zu jedem Fahrzeug/Anhänger ein Logbuch (Tanken, Service, Reparatur, HU, Reifen) mit Kosten, km-Stand und Litern; Auswertung von Kosten und Verbrauch (l/100 km), Kilometerstand, Service-Erinnerung (nach Datum oder km) und HU-Warnung, dazu die letzten Lieferungen. Erreichbar über „Akte“ auf der Fuhrpark-Kachel.
 - **Auswertung**: Kennzahlen für einen frei wählbaren Zeitraum (Aufträge, geliefert, offen, Pfand, Fuhrparkkosten), Diagramm der Aufträge pro Tag bzw. Monat, Top-Kunden, beliebteste Artikel, Auswertung je Fahrer und Fahrzeug sowie Fuhrparkkosten aus der Fahrzeugakte; als CSV exportierbar.
 - **App aufs Handy (PWA)**: Lieferwerk lässt sich auf dem Startbildschirm installieren (Android: „App installieren“, iPhone: Teilen → Zum Home-Bildschirm; Einstellungen → „App aufs Handy“). Packlisten und Touren bleiben offline im zuletzt geladenen Stand lesbar, Änderungen brauchen Verbindung; beim Abmelden werden die Offline-Daten gelöscht. Voraussetzung: HTTPS (z. B. über einen Reverse-Proxy) oder localhost.
+- **Automatische Datensicherung**: tägliche Sicherung der Datenbank mit Aufbewahrungsfrist, Download und manuelles „Jetzt sichern“ in den Einstellungen, Wiederherstellung per Kommandozeile.
 - **Fahrer-Ansicht**: eigene Touren, Navigation, Anruf, „Losfahren“ / „Geliefert“
 - **Rollen**: Administrator, Packer, Fahrer – pro Mitarbeiter auch **mehrere Rollen** möglich (z. B. Packer + Fahrer; ein Administrator kann zusätzlich als Packer/Fahrer eingeteilt werden). Wer Packer und Fahrer ist, sieht Pfand in der Fahrer-Ansicht immer und in der Packliste nach den Packer-Regeln
 - **Testdaten**: Einstellungen → „Testdaten erzeugen“ legt Beispiel-Aufträge (Packlisten, Touren, Archiv), Kunden, Fuhrpark und Demo-Mitarbeiter an; „Testdaten entfernen“ löscht nur diese wieder
@@ -107,7 +108,10 @@ Berechnete Beträge werden im Auftrag gespeichert und ändern sich nicht, wenn e
 
 ## Datensicherung & Wartung
 
-- **Backup:** Ordner `data/` (bzw. das Docker-Volume) kopieren, am besten bei gestopptem Server. Die Datenbank ist die Datei `lieferwerk.db`.
+- **Automatische Sicherung:** Lieferwerk sichert die Datenbank täglich zur eingestellten Uhrzeit (Standard 02:00) in den Ordner `data/backups/` (Docker: `/data/backups`). Wurde der Server zu der Zeit nicht ausgeführt, wird die Sicherung beim nächsten Start nachgeholt. Die letzten 14 Sicherungen bleiben erhalten (einstellbar). Unter Einstellungen → „Datensicherung“ gibt es **Jetzt sichern**, die Liste der Sicherungen zum **Herunterladen** und die Einstellungen. Mit der Umgebungsvariable `BACKUP_DIR` lässt sich ein anderer Ordner (z. B. ein anderes Laufwerk) festlegen.
+- **Wichtig:** Eine Sicherung auf demselben Laufwerk schützt nicht vor einem Festplattenschaden. Sicherungen deshalb regelmäßig herunterladen oder `BACKUP_DIR` auf ein anderes Laufwerk/Netzlaufwerk legen.
+- **Wiederherstellen** (Server vorher stoppen): `npm run cli -- restore` listet die Sicherungen, `npm run cli -- restore lieferwerk-20260101-020000-auto.db` spielt eine ein. Der bisherige Stand wird als `lieferwerk-vor-restore-….db` daneben abgelegt. Docker: `docker compose stop`, dann `docker compose run --rm lieferwerk node --disable-warning=ExperimentalWarning src/cli.ts restore <datei>`, dann `docker compose up -d`.
+- **Sicherung per Kommandozeile:** `npm run cli -- backup`
 - **Passwort vergessen:** `npm run cli -- reset-password admin NeuesPasswort123`
 - **Benutzer per Kommandozeile:** `npm run cli -- create-user max "Max Mustermann" packer,driver Passwort1234` (mehrere Rollen mit Komma)
 - **Dasselbe in Docker:** `docker compose exec lieferwerk node --disable-warning=ExperimentalWarning src/cli.ts reset-password admin NeuesPasswort123`

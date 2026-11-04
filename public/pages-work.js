@@ -65,7 +65,7 @@ ROUTES.push({
     }
 
     function setPacked(it, qty) {
-      it.packed_qty = Math.max(0, Math.min(it.quantity, qty));
+      it.packed_qty = Math.max(0, Math.min(it.target_qty ?? it.quantity, qty));
       if (order.status === 'neu') order.status = 'packen';
       render();
       const wanted = it.packed_qty;
@@ -80,27 +80,57 @@ ROUTES.push({
       });
     }
 
+    function issueDialog(it) {
+      formDialog({
+        title: `Problem mit „${it.name}“`,
+        submitLabel: 'Übernehmen',
+        values: { mode: it.item_status || 'normal', repl_name: it.repl_name || '', repl_qty: it.repl_qty ?? it.quantity, repl_unit: it.repl_unit || it.unit, repl_note: it.repl_note || '' },
+        fields: [
+          { name: 'mode', label: 'Was ist mit dem Artikel?', type: 'select', required: true, options: [['normal', 'Alles in Ordnung (zurücksetzen)'], ['ersatz', 'Durch Ersatzartikel austauschen'], ['nicht_lieferbar', 'Nicht lieferbar (entfällt)']] },
+          { name: 'repl_name', label: 'Ersatzartikel (nur bei Ersatz)', type: 'text', full: true },
+          { name: 'repl_qty', label: 'Ersatzmenge', type: 'number' },
+          { name: 'repl_unit', label: 'Einheit', type: 'text' },
+          { name: 'repl_note', label: 'Hinweis (z. B. Grund)', type: 'text', full: true },
+        ],
+        onSubmit: async (v) => {
+          const body = { mode: v.mode, repl_note: v.repl_note || null };
+          if (v.mode === 'ersatz') Object.assign(body, { repl_name: v.repl_name, repl_qty: v.repl_qty, repl_unit: v.repl_unit });
+          order = await api(`/pack/items/${it.id}/issue`, { method: 'POST', body });
+          render();
+        },
+      });
+    }
+
     function itemRow(it, locked) {
-      const full = it.packed_qty >= it.quantity;
-      const stepper = Number.isInteger(it.quantity) && it.quantity > 1 && it.quantity <= 999;
+      const status = it.item_status || 'normal';
+      const target = it.target_qty ?? it.quantity;
+      const full = it.done ?? it.packed_qty >= it.quantity;
+      const skipped = status === 'nicht_lieferbar';
+      const stepper = !skipped && Number.isInteger(target) && target > 1 && target <= 999;
       const hasDeposit = it.deposit_cents !== undefined;
-      return h('div', { class: `pack-item${full ? ' done' : ''}` },
+      const unit = status === 'ersatz' ? (it.repl_unit || it.unit) : it.unit;
+      return h('div', { class: `pack-item${full ? ' done' : ''}${status !== 'normal' ? ' issue ' + status : ''}` },
         h('button', {
-          class: 'pack-check', disabled: locked, 'aria-label': full ? 'Als nicht gepackt markieren' : 'Als gepackt markieren',
-          onclick: () => setPacked(it, full ? 0 : it.quantity),
+          class: 'pack-check', disabled: locked || skipped, 'aria-label': full ? 'Als nicht gepackt markieren' : 'Als gepackt markieren',
+          onclick: () => setPacked(it, full ? 0 : target),
         }, '✓'),
         h('div', { class: 'pi-body' },
-          h('div', { class: 'pi-name' }, it.name),
+          h('div', { class: 'pi-name' }, status === 'ersatz' ? it.repl_name : it.name),
+          status === 'ersatz' ? h('div', { class: 'pi-sub' }, `Ersatz für: ${it.name} (${fmtQty(it.quantity)} ${it.unit})`) : null,
           h('div', { class: 'pi-meta' },
+            status === 'ersatz' ? badge('ersatz', 'Ersatz') : null,
+            skipped ? badge('storniert', 'Nicht lieferbar') : null,
             badge(it.packaging, it.packaging === 'kasten' ? 'Kasten' : 'einzeln'),
             it.note ? h('span', {}, it.note) : null,
+            it.repl_note ? h('span', {}, it.repl_note) : null,
             hasDeposit && it.deposit_cents > 0 ? h('span', { class: 'dep' }, `Pfand ${eur(it.deposit_cents)}${it.deposit_rule_name ? ` · ${it.deposit_rule_name}` : ''}`) : null)),
         stepper
           ? h('div', { class: 'stepper' },
               h('button', { disabled: locked || it.packed_qty <= 0, 'aria-label': 'Eins weniger', onclick: () => setPacked(it, it.packed_qty - 1) }, '−'),
-              h('div', { class: 'count' }, `${fmtQty(it.packed_qty)}/${fmtQty(it.quantity)}`),
+              h('div', { class: 'count' }, `${fmtQty(it.packed_qty)}/${fmtQty(target)}`),
               h('button', { disabled: locked || full, 'aria-label': 'Eins mehr', onclick: () => setPacked(it, it.packed_qty + 1) }, '+'))
-          : h('div', { class: 'pi-qty' }, `${fmtQty(it.quantity)} ${it.unit}`));
+          : h('div', { class: 'pi-qty' }, skipped ? '–' : `${fmtQty(target)} ${unit}`),
+        locked ? null : h('button', { class: 'btn small ghost pi-issue', 'aria-label': 'Problem melden', title: 'Nicht lieferbar / Ersatz', onclick: () => issueDialog(it) }, '⚠'));
     }
 
     function depositToggle() {
@@ -195,8 +225,10 @@ ROUTES.push({
         o.notes ? h('div', { class: 'notice warn mt-s' }, o.notes) : null,
         o.has_signature ? h('div', { class: 'notice mt-s' }, `✓ Unterschrieben von ${o.signed_name} (${String(o.signed_at).slice(0, 16)})`) : null,
         hasDeposit ? h('div', { class: 'dep mt-s' }, h('strong', {}, `Pfand: ${eur(o.deposit_total_cents)}`)) : null,
-        h('details', {}, h('summary', {}, `Ladung (${o.items.length} Positionen)`),
-          h('ul', {}, ...o.items.map((it) => h('li', {}, `${fmtQty(it.quantity)} ${it.unit} ${it.name}`, it.packaging === 'kasten' ? ' (Kasten)' : '')))),
+        h('details', {}, h('summary', {}, `Ladung (${o.items.length} Positionen${o.issue_count ? `, ${o.issue_count} geändert` : ''})`),
+          h('ul', {}, ...o.items.map((it) => h('li', { class: it.item_status === 'nicht_lieferbar' ? 'struck' : '' },
+            it.item_status === 'ersatz' ? `${fmtQty(it.repl_qty)} ${it.repl_unit || it.unit} ${it.repl_name} (Ersatz für ${it.name})` : `${fmtQty(it.quantity)} ${it.unit} ${it.name}${it.item_status === 'nicht_lieferbar' ? ' – nicht lieferbar' : ''}`,
+            it.packaging === 'kasten' ? ' (Kasten)' : '')))),
         h('div', { class: 'actions' },
           h('a', { class: 'btn', href: maps, target: '_blank', rel: 'noopener noreferrer' }, 'Navigation'),
           o.phone ? h('a', { class: 'btn', href: `tel:${o.phone.replace(/[^+\d]/g, '')}` }, `Anrufen`) : null,

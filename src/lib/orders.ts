@@ -1,6 +1,13 @@
 import { all, get, getSetting } from '../db.ts';
 import type { SessionUser } from '../types.ts';
 
+/** SQL: Position ist erledigt (gepackt, als nicht lieferbar markiert oder Ersatz gepackt). */
+export function doneSql(a = 'i'): string {
+  return `(${a}.item_status = 'nicht_lieferbar'
+    OR (${a}.item_status = 'ersatz' AND ${a}.packed_qty >= COALESCE(${a}.repl_qty, ${a}.quantity))
+    OR (${a}.item_status NOT IN ('nicht_lieferbar','ersatz') AND ${a}.packed_qty >= ${a}.quantity))`;
+}
+
 const ORDER_SELECT = `
 SELECT o.*,
        p.name AS packer_name,
@@ -8,7 +15,8 @@ SELECT o.*,
        v.plate AS vehicle_plate, v.name AS vehicle_name,
        t.plate AS trailer_plate, t.name AS trailer_name,
        (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id) AS item_count,
-       (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id AND i.packed_qty >= i.quantity) AS packed_count,
+       (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id AND ${doneSql('i')}) AS packed_count,
+       (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id AND i.item_status <> 'normal') AS issue_count,
        (SELECT COALESCE(SUM(i.deposit_cents), 0) FROM order_items i WHERE i.order_id = o.id) AS deposit_total_cents
   FROM orders o
   LEFT JOIN users p ON p.id = o.packer_id
@@ -28,7 +36,7 @@ export function depositVisibleTo(user: SessionUser, packContext = false): boolea
   return true;
 }
 
-const ITEM_DEPOSIT_FIELDS = ['deposit_rule_id', 'deposit_rule_name', 'deposit_cents', 'deposit_override_cents'];
+const ITEM_DEPOSIT_FIELDS = ['deposit_rule_id', 'deposit_rule_name', 'deposit_cents', 'deposit_override_cents', 'orig_deposit_cents'];
 
 export function loadItems(orderId: number): any[] {
   return all(
@@ -49,6 +57,8 @@ export function shapeOrder(order: any, items: any[] | undefined, showDeposit: bo
   if (items) {
     out.items = items.map((it) => {
       const copy: any = { ...it };
+      copy.target_qty = it.item_status === 'ersatz' ? (it.repl_qty ?? it.quantity) : it.quantity;
+      copy.done = it.item_status === 'nicht_lieferbar' || it.packed_qty >= copy.target_qty;
       if (!showDeposit) for (const f of ITEM_DEPOSIT_FIELDS) delete copy[f];
       return copy;
     });
